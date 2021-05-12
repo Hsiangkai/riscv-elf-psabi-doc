@@ -14,6 +14,7 @@
 	* [Named ABIs](#named-abis)
 	* [Default ABIs](#default-abis)
 	* [Code models](#code-models)
+	* [Dynamic Linking](#dynamic-linking)
 3. [C type details](#c-types)
 	* [C type sizes and alignments](#c-type-sizes)
 	* [C type representations](#c-type-representation)
@@ -27,7 +28,7 @@
 	* [Thread Local Storage](#thread-local-storage)
 	* [Program Header Table](#program-header-table)
 	* [Note Sections](#note-sections)
-	* [Dynamic Table](#dynamic-table)
+	* [Dynamic Section](#dynamic-section)
 	* [Hash Table](#hash-table)
 	* [Attributes](#Attributes)
 5. [DWARF](#dwarf)
@@ -375,6 +376,21 @@ offset, relative to the value of the `gp` register, can be produced, referring
 to address literals in the GOT.  This code model is position independent.
 Does not apply to the ILP32 ABIs.
 
+## <a name=dynamic-linking></a>Dynamic Linking
+
+Run-time linkers that use lazy binding must preserve all argument registers
+used in the standard calling convention for the ABI in use. Any functions that
+use additional argument registers must be annoted with `STO_RISCV_VARIANT_CC`,
+as defined in [Symbol Table](#symbol-table).
+
+> NOTE:
+> Vector registers have a variable size depending on the hardware
+> implementation and can be quite large. Saving/restoring all these vector
+> arguments in a run-time linker's lazy resolver would use a large amount of
+> stack space and hurt performance. This attribute allows vector registers to
+> not be part of the standard calling convention so run-time linkers are not
+> required to save/restore them and can instead eagerly bind such functions.
+
 # <a name=c-types></a>C type details
 
 ## <a name=c-type-sizes></a>C type sizes and alignments
@@ -511,7 +527,20 @@ There are no RISC-V specific definitions relating to ELF string tables.
 
 ## <a name=symbol-table></a>Symbol Table
 
-There are no RISC-V specific definitions relating to ELF symbol tables.
+* st_other: The lower 2 bits are used to specify a symbol's visibility. The
+  remaining 6 bits have no defined meaning in the ELF gABI. We use the highest
+  bit to mark functions that do not follow the standard calling convention for
+  the ABI in use.
+
+  The defined processor-specific `st_other` flags are listed in the following
+  table.
+
+  Name                 | Mask
+  :------------------- | :----
+  STO_RISCV_VARIANT_CC | 0x80
+
+  See [Dynamic Linking](#dynamic-linking) for the meaning of
+  `STO_RISCV_VARIANT_CC`.
 
 ## <a name=relocations></a>Relocations
 
@@ -1015,9 +1044,18 @@ PT_RISCV_ATTRIBUTES  | 0x70000003  | RISC-V ELF attribute section.
 
 There are no RISC-V specific definitions relating to ELF note sections.
 
-## <a name=dynamic-table></a>Dynamic Table
+## <a name=dynamic-section></a>Dynamic Section
 
-There are no RISC-V specific definitions relating to dynamic tables.
+The defined processor-specific dynamic array tags are listed in the following
+table.
+
+Name                | Value      | d_un  | Executable        | Shared Object
+:------------------ | :--------- | :---- | :---------------- | :-----------------
+DT_RISCV_VARIANT_CC | 0x70000001 | d_val | Platform specific | Platform specific
+
+An object with the dynamic tag `DT_RISCV_VARIANT_CC` has one or more
+`R_RISCV_JUMP_SLOT` relocations against symbols with the `STO_RISCV_VARIANT_CC`
+attribute.
 
 ## <a name=hash-table></a>Hash Table
 
